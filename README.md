@@ -12,9 +12,8 @@ El agente usa tool use (L3 de la escalera de AI Workflows) para consultar el his
 
 - **Docker** — empaquetar el agente como contenedor reproducible
 - **Kubernetes** — orquestar el despliegue en un cluster local (Docker Desktop)
-- **GitHub Actions** — automatizar el build y despliegue en cada push a main
+- **GitHub Actions** — pipeline de CI/CD con ejecución manual (`workflow_dispatch`)
 - **FastAPI** — exponer el agente como microservicio HTTP
-- **CI/CD para IA** — el mismo pipeline que se usa en producción para modelos y agentes
 
 ### Stack
 
@@ -22,7 +21,7 @@ El agente usa tool use (L3 de la escalera de AI Workflows) para consultar el his
 - **Anthropic Claude** — LLM con tool use para clasificación inteligente
 - **Docker** — empaquetado y portabilidad
 - **Kubernetes** — orquestación y despliegue (cluster local con Docker Desktop)
-- **GitHub Actions + act** — CI/CD automatizado en local
+- **GitHub Actions** — pipeline CI/CD
 
 ### Endpoints
 
@@ -34,7 +33,7 @@ POST /classify  → clasifica un ticket de soporte
 ### Uso rápido
 
 ```bash
-curl -X POST http://localhost:8000/classify \
+curl -X POST http://localhost:8080/classify \
   -H "Content-Type: application/json" \
   -d '{"ticket": "Auth service returning 500 errors since 09:15 UTC"}'
 ```
@@ -51,9 +50,38 @@ ai-deploy/
 │   └── service.yaml
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml   ← CI/CD
+│       └── deploy.yml   ← CI/CD manual
 └── Dockerfile
 ```
+
+### Despliegue local
+
+```bash
+# 1. Construir la imagen
+docker build -t ticket-classifier:latest .
+
+# 2. Crear el secret con la API key
+kubectl create secret generic anthropic-secret \
+  --from-literal=api-key=sk-ant-...
+
+# 3. Desplegar en Kubernetes
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+
+# 4. Exponer el servicio
+kubectl port-forward service/ticket-classifier-service 8080:80
+```
+
+### Sobre el pipeline de CI/CD
+
+El workflow de GitHub Actions (`workflow_dispatch`) se ejecuta manualmente desde GitHub → Actions → Run workflow. Incluye los siguientes pasos:
+
+1. ✅ Checkout del código
+2. ✅ Setup Python 3.11
+3. ✅ Instalación de dependencias con uv
+4. ✅ Tests de importación
+5. ✅ Build de la imagen Docker
+6. ⚠️ Deploy a Kubernetes — **falla en GitHub Actions** porque el runner de GitHub no tiene acceso al cluster de Kubernetes local. En un entorno real con un self-hosted runner instalado en el servidor, este paso funcionaría correctamente. El paso está marcado con `continue-on-error: true` para que el pipeline no se detenga.
 
 ### Variables de entorno
 
@@ -75,9 +103,8 @@ The agent uses tool use (L3 of the AI Workflows ladder) to query incident histor
 
 - **Docker** — packaging the agent as a reproducible container
 - **Kubernetes** — orchestrating the deployment on a local cluster (Docker Desktop)
-- **GitHub Actions** — automating build and deployment on every push to main
+- **GitHub Actions** — CI/CD pipeline with manual execution (`workflow_dispatch`)
 - **FastAPI** — exposing the agent as an HTTP microservice
-- **CI/CD for AI** — the same pipeline used in production for models and agents
 
 ### Stack
 
@@ -85,7 +112,7 @@ The agent uses tool use (L3 of the AI Workflows ladder) to query incident histor
 - **Anthropic Claude** — LLM with tool use for intelligent classification
 - **Docker** — packaging and portability
 - **Kubernetes** — orchestration and deployment (local cluster with Docker Desktop)
-- **GitHub Actions + act** — automated CI/CD locally
+- **GitHub Actions** — CI/CD pipeline
 
 ### Endpoints
 
@@ -97,7 +124,7 @@ POST /classify  → classifies a support ticket
 ### Quick start
 
 ```bash
-curl -X POST http://localhost:8000/classify \
+curl -X POST http://localhost:8080/classify \
   -H "Content-Type: application/json" \
   -d '{"ticket": "Auth service returning 500 errors since 09:15 UTC"}'
 ```
@@ -114,9 +141,38 @@ ai-deploy/
 │   └── service.yaml
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml   ← CI/CD
+│       └── deploy.yml   ← manual CI/CD
 └── Dockerfile
 ```
+
+### Local deployment
+
+```bash
+# 1. Build the image
+docker build -t ticket-classifier:latest .
+
+# 2. Create the secret with the API key
+kubectl create secret generic anthropic-secret \
+  --from-literal=api-key=sk-ant-...
+
+# 3. Deploy to Kubernetes
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+
+# 4. Expose the service
+kubectl port-forward service/ticket-classifier-service 8080:80
+```
+
+### About the CI/CD pipeline
+
+The GitHub Actions workflow (`workflow_dispatch`) runs manually from GitHub → Actions → Run workflow. It includes the following steps:
+
+1. ✅ Code checkout
+2. ✅ Python 3.11 setup
+3. ✅ Dependency installation with uv
+4. ✅ Import tests
+5. ✅ Docker image build
+6. ⚠️ Kubernetes deploy — **fails in GitHub Actions** because the GitHub runner does not have access to the local Kubernetes cluster. In a real environment with a self-hosted runner installed on the server, this step would work correctly. The step is marked with `continue-on-error: true` so the pipeline does not stop.
 
 ### Environment variables
 
